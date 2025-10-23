@@ -52,7 +52,21 @@ This application demonstrates a complete web system with role-based access contr
 
 **Infrastructure:**
 - Docker & Docker Compose (Containerization)
-- DigitalOcean Spaces (CDN for images - optional)
+- DigitalOcean Spaces CDN (Image hosting)
+
+### CDN-Only Architecture
+
+**Important**: This application uses a **CDN-first architecture** where all artwork images are hosted on DigitalOcean Spaces CDN:
+
+- **Image Storage**: All images served from `https://artappspace.nyc3.digitaloceanspaces.com`
+- **No Local Files**: The application does **not** require local WikiArt dataset (70GB)
+- **Database Records**: Store CDN URLs (e.g., `https://artappspace.nyc3.digitaloceanspaces.com/Baroque/rembrandt_night-watch.jpg`)
+- **Seeding Method**: `seed_from_cdn.py` imports artwork metadata and CDN URLs from curated list
+- **Admin Import**: Queries CDN via S3 API to discover additional artworks
+- **Benefits**: 
+  - Fast deployment (no large dataset download)
+  - Scalable (CDN handles traffic)
+  - Simple Docker setup
 
 ### Database Schema
 
@@ -96,20 +110,26 @@ This application demonstrates a complete web system with role-based access contr
 - Docker Desktop installed
 - Git
 - 4GB+ RAM available
-- 10GB+ disk space
+- 2GB+ disk space (images hosted on CDN)
+- Internet connection (for CDN image access)
 
 ### Installation
 
+**Total Setup Time**: ~5 minutes (no large dataset download required)
+
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yahorlahunovich/WWW_ArtGallery.git
+   git clone https://github.com/quteroc/WWW_ArtGallery.git
    cd WWW_ArtGallery
    ```
 
 2. **Set up environment variables**
+   
+   The `.env` file is already configured with DigitalOcean Spaces CDN. No changes needed for basic deployment.
+   
    ```bash
-   cp .env.example .env
-   # Edit .env file with your settings (optional)
+   # View current configuration (optional)
+   cat .env
    ```
 
 3. **Start the application**
@@ -125,33 +145,78 @@ This application demonstrates a complete web system with role-based access contr
 
 5. **Create admin user**
    ```bash
-   docker-compose exec backend python -m app.scripts.create_admin \
-     --username admin \
-     --email admin@example.com \
-     --password admin123
+   docker-compose exec backend python -m app.scripts.create_admin --username admin --email admin@example.com --password admin123
    ```
 
-6. **Seed the database with artworks**
-   ```bash
-   # Import sample artworks (1% of dataset, ~800 artworks)
-   docker-compose exec backend python -m app.scripts.seed_data --percentage 0.01
+6. **Seed the database with artworks from CDN**
    
-   # Or import full dataset (~80,000 artworks) - takes longer
-   docker-compose exec backend python -m app.scripts.seed_data
+   **IMPORTANT**: This application uses a **CDN-only architecture**. All images are hosted on DigitalOcean Spaces CDN, no local files needed.
+   
+   ```bash
+   # Import 732 curated artworks from CDN (recommended - fast)
+   docker-compose exec backend python -m app.scripts.seed_from_cdn
    ```
+   
+   This will import:
+   - 732 verified artworks from 10 art styles
+   - All images served from: https://artappspace.nyc3.digitaloceanspaces.com
+   - Styles included: Baroque, Impressionism, Post-Impressionism, Art Nouveau, Cubism, Early Renaissance, Expressionism, Abstract Expressionism, Analytical Cubism, Action Painting
+   - Takes ~30 seconds to complete
 
 7. **Access the application**
    - Gallery: http://localhost:8000
    - API Documentation: http://localhost:8000/docs
    - Login: http://localhost:8000/login
 
+### Quick Setup (Copy-Paste Commands)
+
+For convenience, here are all commands in sequence:
+
+**Linux/macOS/Git Bash:**
+```bash
+# Clone and navigate
+git clone https://github.com/quteroc/WWW_ArtGallery.git
+cd WWW_ArtGallery
+
+# Start containers
+docker-compose up --build -d
+
+# Wait 60 seconds for services to initialize
+# Then create admin and seed database
+docker-compose exec backend python -m app.scripts.create_admin --username admin --email admin@example.com --password admin123
+docker-compose exec backend python -m app.scripts.seed_from_cdn
+
+# Access: http://localhost:8000
+```
+
+**Windows PowerShell:**
+```powershell
+# Clone and navigate
+git clone https://github.com/quteroc/WWW_ArtGallery.git
+cd WWW_ArtGallery
+
+# Start containers
+docker-compose up --build -d
+
+# Wait 60 seconds for services to initialize
+# Then create admin and seed database
+docker-compose exec backend python -m app.scripts.create_admin `
+  --username admin `
+  --email admin@example.com `
+  --password admin123
+
+docker-compose exec backend python -m app.scripts.seed_from_cdn
+
+# Access: http://localhost:8000
+```
+
 ### Test Accounts
 
-After running the seed script, you'll have these accounts:
+After running the seed script, use these accounts to test different roles:
 
-- **Admin**: admin / admin123
-- **Manager**: manager / manager123
-- **User**: user / user123
+- **Admin**: admin / admin123 (created in step 5)
+- **Manager**: manager / manager123 (auto-created by seed script)
+- **User**: user / user123 (auto-created by seed script)
 
 ## 📚 User Guide
 
@@ -253,6 +318,9 @@ WWW_ArtGallery/
 │   │   ├── models/         # SQLModel database models
 │   │   ├── schemas/        # Pydantic validation schemas
 │   │   ├── scripts/        # Seeding and admin creation
+│   │   │   ├── create_admin.py         # Create admin user
+│   │   │   ├── seed_from_cdn.py        # CDN-based seeding (main)
+│   │   │   └── cdn_artworks_list.txt   # 732 curated CDN artwork paths
 │   │   ├── services/       # Business logic (ML descriptions)
 │   │   ├── tests/          # Automated tests
 │   │   ├── web/            # Web routes (HTML rendering)
@@ -276,22 +344,22 @@ WWW_ArtGallery/
 
 ### Environment Variables
 
-Create a `.env` file (or use `.env.example`):
+The `.env` file is pre-configured with the following settings:
 
 ```env
 # Database
 DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/artgallery
 
 # JWT Security
-SECRET_KEY=your-secret-key-change-in-production
+SECRET_KEY=09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
 
-# CDN (Optional - for serving images from cloud)
-ARTWORKS_BASE_URL=https://your-cdn-url.com
-
-# File Paths
+# CDN Configuration (DigitalOcean Spaces)
+ARTWORKS_BASE_URL=https://artappspace.nyc3.digitaloceanspaces.com
 STATIC_FILES_DIR=/app/ml/input/wikiart
 ```
+
+**Note**: All artwork images are served from the DigitalOcean Spaces CDN. The application does **not** require local image files.
 
 ## 🐛 Troubleshooting
 
@@ -314,10 +382,28 @@ docker-compose logs backend
 docker-compose restart backend
 ```
 
-### Missing Images
-- Ensure you've run the seed script
-- Check `ARTWORKS_BASE_URL` in .env
-- Verify image files exist in `ml/input/wikiart/`
+### No Artworks Showing
+```bash
+# Re-run the CDN seed script
+docker-compose exec backend python -m app.scripts.seed_from_cdn
+
+# Verify artworks were imported
+docker-compose exec db psql -U postgres -d artgallery -c "SELECT COUNT(*) FROM artworks;"
+```
+
+### Images Not Loading
+- All images are hosted on CDN: https://artappspace.nyc3.digitaloceanspaces.com
+- Check browser console for CORS or network errors
+- Verify `ARTWORKS_BASE_URL` in .env matches: `https://artappspace.nyc3.digitaloceanspaces.com`
+- No local image files are needed
+
+### Admin Import Feature Shows Few Artworks
+The admin panel can import additional artworks from the CDN:
+1. Login as admin
+2. Go to Admin Panel → Artworks
+3. Click "Import from Dataset"
+4. Select a style (e.g., Baroque, Impressionism)
+5. The system scans up to 500 CDN images per style and filters out already-imported ones
 
 ## 📝 API Documentation
 

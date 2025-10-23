@@ -352,7 +352,7 @@ async def scan_available_artworks(
     current_user: User = Depends(require_roles("admin"))
 ):
     """
-    Scan the WikiArt directory and return available artworks grouped by style.
+    Query CDN to get available artworks grouped by style.
     Only returns artworks that are NOT already in the database.
     
     Returns:
@@ -365,69 +365,81 @@ async def scan_available_artworks(
             ...
         }
     """
-    import re
-    from pathlib import Path
+    import xml.etree.ElementTree as ET
+    import urllib.request
     
-    wikiart_dir = Path(settings.STATIC_FILES_DIR)
-    
-    if not wikiart_dir.exists():
-        return {}
-    
-    # Get all existing artwork paths from database
+    # Get all existing artwork filenames from database
     query = select(Artwork.image_path)
     result = await db.execute(query)
     existing_paths = set(result.scalars().all())
     
     available_artworks = {}
     
-    # Scan directory
-    for style_dir in wikiart_dir.iterdir():
-        if not style_dir.is_dir():
-            continue
-            
-        style_name = style_dir.name
-        available_artworks[style_name] = []
+    # Styles to check (excluding Ukiyo_e as requested)
+    styles_to_scan = ["Baroque", "Impressionism", "Post_Impressionism", "Art_Nouveau_Modern"]
+    
+    for style in styles_to_scan:
+        available_artworks[style] = []
         
-        # Scan images in style directory (limit to 100 per style for performance)
-        image_count = 0
-        for img_file in style_dir.glob("*.jpg"):
-            if image_count >= 100:
-                break
+        try:
+            # Query CDN for this style (get up to 500 items to have plenty of options)
+            cdn_url = f"{settings.ARTWORKS_BASE_URL}/?prefix={style}/&max-keys=500"
+            
+            with urllib.request.urlopen(cdn_url) as response:
+                xml_data = response.read()
+            
+            # Parse XML response
+            root = ET.fromstring(xml_data)
+            namespace = {'s3': 'http://s3.amazonaws.com/doc/2006-03-01/'}
+            
+            for contents in root.findall('s3:Contents', namespace):
+                key_element = contents.find('s3:Key', namespace)
+                if key_element is None:
+                    continue
+                    
+                key = key_element.text
                 
-            relative_path = f"{style_name}/{img_file.name}"
-            
-            # Skip if already in database
-            if any(relative_path in path for path in existing_paths):
-                continue
-            
-            # Parse filename: "artist-name_title-name.jpg"
-            filename = img_file.stem  # Remove .jpg
-            
-            # Split by underscore or hyphen to extract artist and title
-            if "_" in filename:
-                parts = filename.split("_", 1)
-                artist_part = parts[0]
-                title_part = parts[1] if len(parts) > 1 else parts[0]
-            else:
-                # Fallback: use first part as artist, rest as title
-                parts = filename.split("-", 1)
-                artist_part = parts[0]
-                title_part = parts[1] if len(parts) > 1 else parts[0]
-            
-            # Format: replace hyphens/underscores with spaces, title case
-            artist = artist_part.replace("-", " ").replace("_", " ").title()
-            title = title_part.replace("-", " ").replace("_", " ").title()
-            
-            available_artworks[style_name].append({
-                "path": relative_path,
-                "title": title,
-                "artist": artist
-            })
-            image_count += 1
+                if not key or not key.endswith(('.jpg', '.jpeg', '.png')):
+                    continue
+                
+                # Build image path for comparison
+                image_path = f"ml/input/wikiart/{key}"
+                
+                # Skip if already in database
+                if image_path in existing_paths:
+                    continue
+                
+                # Parse filename
+                filename = key.split('/')[-1]
+                filename_base = filename.rsplit('.', 1)[0]
+                
+                # Split by underscore to extract artist and title
+                if "_" in filename_base:
+                    parts = filename_base.split("_", 1)
+                    artist_part = parts[0]
+                    title_part = parts[1] if len(parts) > 1 else parts[0]
+                else:
+                    parts = filename_base.split("-", 1)
+                    artist_part = parts[0]
+                    title_part = parts[1] if len(parts) > 1 else parts[0]
+                
+                # Format: replace hyphens/underscores with spaces, title case
+                artist = artist_part.replace("-", " ").replace("_", " ").title()
+                title = title_part.replace("-", " ").replace("_", " ").title()
+                
+                available_artworks[style].append({
+                    "path": key,  # Just the style/filename, not full path
+                    "title": title,
+                    "artist": artist
+                })
         
-        # Remove empty styles
-        if not available_artworks[style_name]:
-            del available_artworks[style_name]
+        except Exception as e:
+            # Log error but continue with other styles
+            print(f"Error scanning {style}: {str(e)}")
+            continue
+    
+    # Remove empty styles
+    available_artworks = {k: v for k, v in available_artworks.items() if v}
     
     return available_artworks
 
