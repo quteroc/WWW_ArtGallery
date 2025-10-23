@@ -335,13 +335,6 @@ This project uses WikiArt dataset for educational purposes. All artwork images r
 
 ## 👨‍💻 Author
 
-Yahor Lahunovich
+Yauheni Butsialevich
 Warsaw University of Technology
 WWW Project 2025
-
-## 📞 Support
-
-For questions or issues, please refer to:
-- USER_GUIDE.md for usage instructions
-- REPORT.md for technical details
-- GitHub Issues for bug reports
