@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Classic Art Gallery{% endblock %}
+
+{% block content %}
+<div class="min-h-[calc(100vh-16rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8" x-data="loginForm()">
+        <div>
+            <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                Sign in to your account
+            </h2>
+            <p class="mt-2 text-center text-sm text-gray-600">
+                Or
+                <a href="/register" class="font-medium text-indigo-600 hover:text-indigo-500">
+                    create a new account
+                </a>
+            </p>
+        </div>
+        
+        <!-- Error Message -->
+        <div x-show="error" class="rounded-md bg-red-50 p-4">
+            <div class="flex">
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800" x-text="error"></h3>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Success Message -->
+        <div x-show="success" class="rounded-md bg-green-50 p-4">
+            <div class="flex">
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-green-800" x-text="success"></h3>
+                </div>
+            </div>
+        </div>
+        
+        <form class="mt-8 space-y-6" @submit.prevent="login()">
+            <div class="rounded-md shadow-sm -space-y-px">
+                <div>
+                    <label for="username" class="sr-only">Username or Email</label>
+                    <input 
+                        id="username" 
+                        name="username" 
+                        type="text" 
+                        required 
+                        x-model="username"
+                        class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" 
+                        placeholder="Username or Email"
+                    >
+                </div>
+                <div>
+                    <label for="password" class="sr-only">Password</label>
+                    <input 
+                        id="password" 
+                        name="password" 
+                        type="password" 
+                        required 
+                        x-model="password"
+                        class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" 
+                        placeholder="Password"
+                    >
+                </div>
+            </div>
+
+            <div>
+                <button 
+                    type="submit" 
+                    :disabled="loading"
+                    :class="loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700'"
+                    class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                    <span x-show="!loading">Sign in</span>
+                    <span x-show="loading">Signing in...</span>
+                </button>
+            </div>
+        </form>
+        
+        <div class="text-center">
+            <p class="text-sm text-gray-600">
+                Demo credentials: <br>
+                <strong>admin / admin123</strong> (admin role) <br>
+                <strong>user / user123</strong> (user role)
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function loginForm() {
+        return {
+            username: '',
+            password: '',
+            loading: false,
+            error: null,
+            success: null,
+            
+            async login() {
+                this.loading = true;
+                this.error = null;
+                this.success = null;
+                
+                try {
+                    // Create form data for OAuth2 password flow
+                    const formData = new FormData();
+                    formData.append('username', this.username);
+                    formData.append('password', this.password);
+                    
+                    const response = await fetch('/api/v1/auth/login', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (!response.ok) {
+                        const data = await response.json();
+                        throw new Error(data.detail || 'Login failed');
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // Store token in localStorage
+                    localStorage.setItem('access_token', data.access_token);
+                    
+                    // Set cookie for SSR pages (7 days = 604800 seconds)
+                    document.cookie = `access_token=${data.access_token}; path=/; max-age=604800; SameSite=Lax`;
+                    
+                    this.success = 'Login successful! Redirecting...';
+                    
+                    // Get 'next' parameter from URL
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const nextUrl = urlParams.get('next') || '/';
+                    
+                    // Redirect
+                    setTimeout(() => {
+                        window.location.href = nextUrl;
+                    }, 1000);
+                    
+                } catch (err) {
+                    this.error = err.message;
+                } finally {
+                    this.loading = false;
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

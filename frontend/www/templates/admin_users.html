@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Users - Admin - Classic Art Gallery{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-0">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <a href="/admin" class="text-indigo-600 hover:text-indigo-900 flex items-center mb-4">
+            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Dashboard
+        </a>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Manage Users</h1>
+        <p class="text-gray-600">View user information and change roles</p>
+    </div>
+
+    <!-- Users Table -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        User
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Email
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Role
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Joined
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                    </th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for u in users %}
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">{{ u.username }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">{{ u.email }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            {% if u.role == 'admin' %}bg-purple-100 text-purple-800
+                            {% elif u.role == 'manager' %}bg-blue-100 text-blue-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ u.role }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if u.is_active %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                            Active
+                        </span>
+                        {% else %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                            Inactive
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ u.created_at.strftime('%Y-%m-%d') }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <form method="post" action="/admin/users/{{ u.id }}/change-role" style="display: inline;">
+                            <select name="role" onchange="this.form.submit()" class="text-sm border-gray-300 rounded-md">
+                                <option value="user" {% if u.role == 'user' %}selected{% endif %}>user</option>
+                                <option value="manager" {% if u.role == 'manager' %}selected{% endif %}>manager</option>
+                                <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>admin</option>
+                            </select>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="mt-6 flex justify-center gap-2">
+        {% if page > 0 %}
+        <a href="/admin/users?page={{ page - 1 }}" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+            Previous
+        </a>
+        {% else %}
+        <span class="px-4 py-2 bg-gray-300 text-gray-500 rounded-md cursor-not-allowed">
+            Previous
+        </span>
+        {% endif %}
+        
+        <span class="px-4 py-2 text-gray-700">Page {{ page + 1 }}</span>
+        
+        {% if users|length == per_page %}
+        <a href="/admin/users?page={{ page + 1 }}" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+            Next
+        </a>
+        {% else %}
+        <span class="px-4 py-2 bg-gray-300 text-gray-500 rounded-md cursor-not-allowed">
+            Next
+        </span>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

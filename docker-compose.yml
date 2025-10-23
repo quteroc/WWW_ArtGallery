@@ -1,0 +1,43 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/artgallery
+      SECRET_KEY: "dev-secret-key-change-in-production"
+      ARTWORKS_BASE_URL: "https://artappspace.nyc3.digitaloceanspaces.com"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./ml:/app/ml  # Mount ML data
+      - ./backend:/app  # Mount backend code for hot reload
+      - ./frontend/www:/app/frontend/www  # Mount web frontend assets
+    networks:
+      - artgallery-network
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: artgallery
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - artgallery-network
+
+volumes:
+  postgres_data:
+
+networks:
+  artgallery-network:
+    driver: bridge

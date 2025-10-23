@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block title %}Gallery - Classic Art Gallery{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-0">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Art Gallery</h1>
+        <p class="text-gray-600">Explore our collection of classic artworks from WikiArt</p>
+    </div>
+
+    <!-- Search and Filters -->
+    <form method="get" action="/" class="mb-6">
+        <div class="flex flex-wrap gap-4 items-end">
+            <!-- Search Box -->
+            <div class="flex-1 min-w-[200px]">
+                <label for="search" class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                <input 
+                    type="text" 
+                    id="search" 
+                    name="q" 
+                    value="{{ search_query }}"
+                    placeholder="Search by title or artist..." 
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                >
+            </div>
+            
+            <!-- Style Filter -->
+            <div class="min-w-[200px]">
+                <label for="style" class="block text-sm font-medium text-gray-700 mb-1">Style</label>
+                <select 
+                    id="style" 
+                    name="style" 
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                    <option value="">All Styles</option>
+                    {% for s in available_styles %}
+                    <option value="{{ s }}" {% if s == current_style %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Submit Button -->
+            <div>
+                <button 
+                    type="submit" 
+                    class="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                    Filter
+                </button>
+            </div>
+            
+            <!-- Clear Button -->
+            {% if search_query or current_style %}
+            <div>
+                <a 
+                    href="/" 
+                    class="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 inline-block"
+                >
+                    Clear
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </form>
+
+    <!-- Artworks Grid -->
+    {% if artworks %}
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" id="gallery">
+        {% for item in artworks %}
+        {% set artwork = item.artwork %}
+        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
+            <!-- Clickable Image -->
+            <a href="/artworks/{{ artwork.id }}" 
+               class="block"
+               data-pswp-width="1200"
+               data-pswp-height="1600"
+               data-pswp-artist="{{ artwork.artist }}"
+               data-pswp-title="{{ artwork.title }}"
+               data-pswp-description="{{ item.full_description or '' }}"
+               target="_blank">
+                <div class="bg-gray-200 h-64 overflow-hidden relative group">
+                    <img 
+                        src="{{ artwork.image_url }}" 
+                        alt="{{ artwork.title }}" 
+                        class="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+                        onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22%3E%3Crect fill=%22%23ddd%22 width=%22400%22 height=%22300%22/%3E%3Ctext fill=%22%23999%22 font-family=%22sans-serif%22 font-size=%2220%22 dy=%2210.5%22 font-weight=%22bold%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22%3EImage Not Found%3C/text%3E%3C/svg%3E'"
+                    >
+                </div>
+            </a>
+            
+            <div class="p-4">
+                <a href="/artworks/{{ artwork.id }}" class="block hover:text-indigo-600">
+                    <h3 class="text-lg font-semibold text-gray-900 truncate">{{ artwork.title }}</h3>
+                </a>
+                <p class="text-sm text-gray-600 truncate">{{ artwork.artist }}</p>
+                <div class="mt-2 flex items-center justify-between">
+                    <span class="text-xs text-gray-500">{{ artwork.style }}</span>
+                    {% if artwork.year %}
+                    <span class="text-xs text-gray-500">{{ artwork.year }}</span>
+                    {% endif %}
+                </div>
+                
+                <!-- Artist Description Snippet -->
+                {% if item.description_snippet %}
+                <div class="mt-3 pt-3 border-t border-gray-200">
+                    <p class="text-xs text-gray-600 line-clamp-3">{{ item.description_snippet }}</p>
+                </div>
+                {% endif %}
+                
+                <!-- Like Button -->
+                <div class="mt-3 pt-3 border-t border-gray-200" x-data="likeButton('{{ artwork.id }}')">
+                    <button 
+                        @click="toggleLike()"
+                        :disabled="loading"
+                        :class="liked ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'"
+                        class="w-full px-3 py-2 rounded-md transition-colors duration-200 text-sm font-medium flex items-center justify-center gap-2"
+                    >
+                        <svg class="w-4 h-4" :class="liked ? 'fill-current' : 'fill-none'" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                        </svg>
+                        <span x-text="liked ? 'Liked' : 'Like'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    <div class="mt-8 flex justify-center gap-2">
+        {% if page > 0 %}
+        <a 
+            href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if current_style %}style={{ current_style }}&{% endif %}page={{ page - 1 }}&per_page={{ per_page }}" 
+            class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+        >
+            Previous
+        </a>
+        {% else %}
+        <span class="px-4 py-2 bg-gray-300 text-gray-500 rounded-md cursor-not-allowed">
+            Previous
+        </span>
+        {% endif %}
+        
+        <span class="px-4 py-2 text-gray-700">Page {{ page + 1 }}</span>
+        
+        {% if artworks|length == per_page %}
+        <a 
+            href="?{% if search_query %}q={{ search_query }}&{% endif %}{% if current_style %}style={{ current_style }}&{% endif %}page={{ page + 1 }}&per_page={{ per_page }}" 
+            class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+        >
+            Next
+        </a>
+        {% else %}
+        <span class="px-4 py-2 bg-gray-300 text-gray-500 rounded-md cursor-not-allowed">
+            Next
+        </span>
+        {% endif %}
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="text-center py-12">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">No artworks found</h3>
+        <p class="mt-1 text-sm text-gray-500">Try adjusting your filters or seed some artworks using the CLI.</p>
+        <div class="mt-4">
+            <code class="bg-gray-100 px-4 py-2 rounded text-sm">
+                docker compose exec backend python -m app.scripts.seed_wikiart --wikiart-dir /app/ml/input/wikiart --top 0.01
+            </code>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Like button Alpine.js component
+function likeButton(artworkId) {
+    return {
+        liked: false,
+        loading: false,
+        
+        async init() {
+            await this.checkLikeStatus();
+        },
+        
+        async checkLikeStatus() {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                this.liked = false;
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/v1/likes/check/${artworkId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.liked = data.liked;
+                }
+            } catch (error) {
+                console.error('Error checking like status:', error);
+            }
+        },
+        
+        async toggleLike() {
+            const token = localStorage.getItem('access_token');
+            
+            if (!token) {
+                window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+                return;
+            }
+            
+            this.loading = true;
+            
+            try {
+                const method = this.liked ? 'DELETE' : 'POST';
+                const response = await fetch(`/api/v1/likes/${artworkId}`, {
+                    method: method,
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    this.liked = data.liked;
+                } else if (response.status === 401) {
+                    localStorage.removeItem('access_token');
+                    window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+                }
+            } catch (error) {
+                console.error('Error toggling like:', error);
+            } finally {
+                this.loading = false;
+            }
+        }
+    };
+}
+</script>
+{% endblock %}

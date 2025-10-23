@@ -1,0 +1,48 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+# For development, we'll allow all origins.
+# For production, you should restrict this to your app's domain.
+origins = ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
+
+@app.get("/artworks")
+def get_artworks():
+    # In a real application, you would fetch this data from a database
+    # or your recommendation engine.
+    return [
+        {
+            "id": 1,
+            "title": "The Starry Night in Grodno",
+            "artist": "Yauheni Butsialevich",
+            "description": "A famous painting by the Dutch artist Vincent van Gogh.",
+            "image_url": "https://example.com/starry_night.jpg"
+        },
+        {
+            "id": 2,
+            "title": "Mona Lisa in Fanipol",
+            "artist": "Egorius Lagunovich",
+            "description": "A half-length portrait painting by the Belarusian artist Egorius Lagunovich.",
+            "image_url": "https://example.com/mona_lisa.jpg"
+        },
+        {
+            "id": 3,
+            "title": "The Persistence of Memory",
+            "artist": "Salvador Dalí",
+            "description": "A 1931 painting by artist Salvador Dalí, and one of his most recognizable works.",
+            "image_url": "https://example.com/persistence_of_memory.jpg"
+        }
+    ]

@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block title %}My Likes - Classic Art Gallery{% endblock %}
+
+{% block content %}
+<div class="px-4 sm:px-0">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">My Liked Artworks</h1>
+        <p class="text-gray-600">Your personal collection of favorite artworks</p>
+    </div>
+
+    {% if total_likes > 0 %}
+    <!-- Statistics Section -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Your Collection Statistics</h2>
+        <p class="text-gray-600 mb-4">Total likes: <span class="font-bold text-indigo-600">{{ total_likes }}</span></p>
+        
+        {% if style_stats %}
+        <!-- Chart Container -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Bar Chart -->
+            <div>
+                <h3 class="text-lg font-medium text-gray-800 mb-3">Style Distribution (Bar Chart)</h3>
+                <canvas id="styleBarChart"></canvas>
+            </div>
+            
+            <!-- Pie Chart -->
+            <div>
+                <h3 class="text-lg font-medium text-gray-800 mb-3">Style Distribution (Pie Chart)</h3>
+                <canvas id="stylePieChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Stats Table -->
+        <div class="mt-6 overflow-x-auto">
+            <h3 class="text-lg font-medium text-gray-800 mb-3">Detailed Breakdown</h3>
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Style</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Percentage</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for stat in style_stats %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ stat.style }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ stat.count }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ stat.percentage }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Liked Artworks Grid -->
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Your Liked Artworks</h2>
+    </div>
+    
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" id="gallery">
+        {% for item in artworks %}
+        {% set artwork = item.artwork %}
+        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
+            <!-- Clickable Image -->
+            <a href="/artworks/{{ artwork.id }}" 
+               class="block"
+               data-pswp-width="1200"
+               data-pswp-height="1600"
+               data-pswp-artist="{{ artwork.artist }}"
+               data-pswp-title="{{ artwork.title }}"
+               data-pswp-description="{{ item.description or '' }}"
+               target="_blank">
+                <div class="bg-gray-200 h-64 overflow-hidden relative group">
+                    <img 
+                        src="{{ artwork.image_url }}" 
+                        alt="{{ artwork.title }}" 
+                        class="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+                        onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22%3E%3Crect fill=%22%23ddd%22 width=%22400%22 height=%22300%22/%3E%3Ctext fill=%22%23999%22 font-family=%22sans-serif%22 font-size=%2220%22 dy=%2210.5%22 font-weight=%22bold%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22%3EImage Not Found%3C/text%3E%3C/svg%3E'"
+                    >
+                </div>
+            </a>
+            
+            <div class="p-4">
+                <a href="/artworks/{{ artwork.id }}" class="block hover:text-indigo-600">
+                    <h3 class="text-lg font-semibold text-gray-900 truncate">{{ artwork.title }}</h3>
+                </a>
+                <p class="text-sm text-gray-600 truncate">{{ artwork.artist }}</p>
+                <div class="mt-2 flex items-center justify-between">
+                    <span class="text-xs text-gray-500">{{ artwork.style }}</span>
+                    {% if artwork.year %}
+                    <span class="text-xs text-gray-500">{{ artwork.year }}</span>
+                    {% endif %}
+                </div>
+                
+                <!-- Artist Description Snippet -->
+                {% if item.description %}
+                <div class="mt-3 pt-3 border-t border-gray-200">
+                    <p class="text-xs text-gray-600 line-clamp-3">{{ item.description }}</p>
+                </div>
+                {% endif %}
+                
+                <!-- Unlike Button -->
+                <div class="mt-3 pt-3 border-t border-gray-200" x-data="likeButton('{{ artwork.id }}')">
+                    <button 
+                        @click="toggleLike()"
+                        :disabled="loading"
+                        class="w-full px-3 py-2 rounded-md bg-red-500 hover:bg-red-600 text-white transition-colors duration-200 text-sm font-medium flex items-center justify-center gap-2"
+                    >
+                        <svg class="w-4 h-4 fill-current" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                        </svg>
+                        <span>Unlike</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="text-center py-12 bg-white rounded-lg shadow-md">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">No liked artworks yet</h3>
+        <p class="mt-1 text-sm text-gray-500">Start exploring the gallery and like your favorite artworks!</p>
+        <div class="mt-6">
+            <a href="/" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                Browse Gallery
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Like button component
+function likeButton(artworkId) {
+    return {
+        loading: false,
+        
+        async toggleLike() {
+            const token = localStorage.getItem('access_token');
+            
+            if (!token) {
+                window.location.href = '/login?next=/me/likes';
+                return;
+            }
+            
+            this.loading = true;
+            
+            try {
+                // Unlike the artwork
+                const response = await fetch(`/api/v1/likes/${artworkId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    // Reload page to update stats and grid
+                    window.location.reload();
+                } else if (response.status === 401) {
+                    localStorage.removeItem('access_token');
+                    window.location.href = '/login?next=/me/likes';
+                }
+            } catch (error) {
+                console.error('Error unliking artwork:', error);
+                this.loading = false;
+            }
+        }
+    };
+}
+
+// Initialize charts if Chart.js is available and we have stats
+{% if style_stats and total_likes > 0 %}
+if (typeof Chart !== 'undefined') {
+    const labels = {{ style_stats | map(attribute='style') | list | tojson }};
+    const data = {{ style_stats | map(attribute='count') | list | tojson }};
+    const percentages = {{ style_stats | map(attribute='percentage') | list | tojson }};
+    
+    // Generate colors for charts
+    const colors = [
+        'rgba(99, 102, 241, 0.8)',   // indigo
+        'rgba(236, 72, 153, 0.8)',   // pink
+        'rgba(16, 185, 129, 0.8)',   // green
+        'rgba(245, 158, 11, 0.8)',   // amber
+        'rgba(139, 92, 246, 0.8)',   // purple
+        'rgba(239, 68, 68, 0.8)',    // red
+        'rgba(59, 130, 246, 0.8)',   // blue
+        'rgba(251, 146, 60, 0.8)',   // orange
+    ];
+    
+    // Bar Chart
+    const barCtx = document.getElementById('styleBarChart').getContext('2d');
+    new Chart(barCtx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Number of Likes',
+                data: data,
+                backgroundColor: colors.slice(0, labels.length),
+                borderColor: colors.slice(0, labels.length).map(c => c.replace('0.8', '1')),
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+    
+    // Pie Chart
+    const pieCtx = document.getElementById('stylePieChart').getContext('2d');
+    new Chart(pieCtx, {
+        type: 'pie',
+        data: {
+            labels: labels.map((label, idx) => `${label} (${percentages[idx]}%)`),
+            datasets: [{
+                data: data,
+                backgroundColor: colors.slice(0, labels.length),
+                borderColor: '#fff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+}
+{% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Register - Classic Art Gallery{% endblock %}
+
+{% block content %}
+<div class="min-h-[calc(100vh-16rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8" x-data="registerForm()">
+        <div>
+            <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                Create your account
+            </h2>
+            <p class="mt-2 text-center text-sm text-gray-600">
+                Or
+                <a href="/login" class="font-medium text-indigo-600 hover:text-indigo-500">
+                    sign in to existing account
+                </a>
+            </p>
+        </div>
+        
+        <!-- Error Message -->
+        <div x-show="error" class="rounded-md bg-red-50 p-4">
+            <div class="flex">
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800" x-text="error"></h3>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Success Message -->
+        <div x-show="success" class="rounded-md bg-green-50 p-4">
+            <div class="flex">
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-green-800" x-text="success"></h3>
+                </div>
+            </div>
+        </div>
+        
+        <form class="mt-8 space-y-6" @submit.prevent="register()">
+            <div class="rounded-md shadow-sm space-y-3">
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email address</label>
+                    <input 
+                        id="email" 
+                        name="email" 
+                        type="email" 
+                        required 
+                        x-model="email"
+                        class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" 
+                        placeholder="your.email@example.com"
+                    >
+                </div>
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                    <input 
+                        id="username" 
+                        name="username" 
+                        type="text" 
+                        required 
+                        x-model="username"
+                        class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" 
+                        placeholder="username"
+                        pattern="[a-zA-Z0-9_-]{3,20}"
+                        title="Username must be 3-20 characters (letters, numbers, _ or -)"
+                    >
+                    <p class="mt-1 text-xs text-gray-500">3-20 characters: letters, numbers, _ or -</p>
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                    <input 
+                        id="password" 
+                        name="password" 
+                        type="password" 
+                        required 
+                        x-model="password"
+                        class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" 
+                        placeholder="Password"
+                        minlength="6"
+                    >
+                    <p class="mt-1 text-xs text-gray-500">Minimum 6 characters</p>
+                </div>
+                <div>
+                    <label for="confirmPassword" class="block text-sm font-medium text-gray-700">Confirm Password</label>
+                    <input 
+                        id="confirmPassword" 
+                        name="confirmPassword" 
+                        type="password" 
+                        required 
+                        x-model="confirmPassword"
+                        class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm" 
+                        placeholder="Confirm password"
+                    >
+                </div>
+            </div>
+
+            <div>
+                <button 
+                    type="submit" 
+                    :disabled="loading"
+                    :class="loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-indigo-700'"
+                    class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                    <span x-show="!loading">Create Account</span>
+                    <span x-show="loading">Creating account...</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function registerForm() {
+        return {
+            email: '',
+            username: '',
+            password: '',
+            confirmPassword: '',
+            loading: false,
+            error: null,
+            success: null,
+            
+            async register() {
+                this.loading = true;
+                this.error = null;
+                this.success = null;
+                
+                // Validate passwords match
+                if (this.password !== this.confirmPassword) {
+                    this.error = 'Passwords do not match';
+                    this.loading = false;
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/v1/auth/register', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            email: this.email,
+                            username: this.username,
+                            password: this.password
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        const data = await response.json();
+                        throw new Error(data.detail || 'Registration failed');
+                    }
+                    
+                    const data = await response.json();
+                    
+                    this.success = 'Account created successfully! Redirecting to login...';
+                    
+                    // Redirect to login after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                    
+                } catch (err) {
+                    this.error = err.message;
+                } finally {
+                    this.loading = false;
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}
